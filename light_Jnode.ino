@@ -43,14 +43,15 @@ funzione		__R		__G		__B		__W
 
 #define DEBUG 1
 
-#define MAJOR_VERSION RF12_EEPROM_VERSION // bump when EEPROM layout changes
-#define MINOR_VERSION 0                   // bump on other non-trivial changes
 #define VERSION "\n[light_Jnode.V3.1]"           // keep in sync with the above
 
 
 // Parametri radio RF12
+// NODEID 1 Altana
 // NODEID 2 Marta
 // NODEID 3 Checco
+// NODEID 4 Tester
+// NODEID 15 Ethernode
 // frequenza group e nodeID da caricare via RF12Demo in EEPROM
 
 #define OUTDest 15      // nodo del bridge rf12<->MQTT
@@ -78,23 +79,16 @@ funzione		__R		__G		__B		__W
 #define MAXSTEPS 6
 
 #define THERMOM A2 
-//init the one wire interface on pin 10
-//sensor[] is the address you receive from the other program
+//init the one wire interface on AIO Port4
 OneWire  ow(THERMOM);
 
 // RF12 configuration area
 typedef struct {
     byte nodeId;            // used by rf12_config, offset 0
+    byte band;              // estrae band   dal campo RF12Config.nodeId
     byte group;             // used by rf12_config, offset 1
-    byte format;            // used by rf12_config, offset 2
-    byte hex_output   :2;   // 0 = dec, 1 = hex, 2 = hex+ascii
-    byte collect_mode :1;   // 0 = ack, 1 = don't send acks
-    byte quiet_mode   :1;   // 0 = show all, 1 = show only valid packets
-    byte band         :1;
-    byte spare_flags  :3;
-    word frequency_offset;  // used by rf12_config, offset 4
-    byte pad[RF12_EEPROM_SIZE-8];
-    word crc;
+    byte lnodeId;           // estrae nodeID dal campo RF12Config.nodeId
+    byte dnodeId;           // estrae nodeID dal campo RF12Config.nodeId
 } RF12Config;
 
 static RF12Config config;
@@ -154,25 +148,24 @@ static byte lowerButton () {
 }
 
 
-static word code2type(byte code) {
-    return code == 4 ? RF12_433MHZ : code == 9 ? RF12_915MHZ : RF12_868MHZ;
-}
 
 // load da EEPROM configurazione RF12
 static void loadConfig() {
-    for (byte i = 0; i < sizeof config; ++ i){
-        ((byte*) &config)[i] = eeprom_read_byte(RF12_EEPROM_ADDR + i);
-    }
-    config.band = (config.nodeId & 0xF0);
-    byte nodeId = config.nodeId & 0x1F;
-    config.nodeId = nodeId;
+    
+        //((byte*) &config)[i] = eeprom_read_byte(RF12_EEPROM_ADDR + 0);
+        config.nodeId = eeprom_read_byte(RF12_EEPROM_ADDR + 0);
+        //((byte*) &config)[i] = eeprom_read_byte(RF12_EEPROM_ADDR + 1);
+        config.group = eeprom_read_byte(RF12_EEPROM_ADDR + 1);
+        config.band = config.nodeId & 0xE0;
+        config.lnodeId = config.nodeId & 0x1F;
+        config.dnodeId = OUTDest;
 }
 
 static void showConfig() {
     Serial.println(VERSION);
-    Serial.print("Radio Init->");Serial.print(" ");
+    Serial.print("Radio Init->");Serial.print(" ");Serial.print( config.nodeId,HEX);
     Serial.print("NODEID ");Serial.print( config.nodeId,HEX);Serial.print(" | ");
-    Serial.print("BAND ");Serial.print( config.band,HEX);Serial.print(" | ");
+    Serial.print("BAND ");Serial.print( config.nodeId & 0xE0,HEX);Serial.print(" | ");
     Serial.print("GROUP ");Serial.print( config.group);Serial.print(" | ");
     Serial.println();
     Serial.println();
@@ -224,47 +217,6 @@ static void saveSettings() {
 }
 
 
-float getTemp9(OneWire  ds,byte datatemp[] ) {
-  //returns the temperature from one DS18B20 in DEG Celsius
-
-    byte data[12];
-    byte addr[8];
-
-    if ( !ds.search(addr)) {
-    //no more sensors on chain, reset search
-        ds.reset_search();
-        return -1000;
-    }
-
-    if ( OneWire::crc8( addr, 7) != addr[7]) {
-        Serial.println("CRC is not valid!");
-        return -1000;
-    }
-
-    if ( addr[0] != 0x10 && addr[0] != 0x28) {
-        Serial.print("Device is not recognized");
-        return -1000;
-    }
-    ds.reset();
-    ds.select(addr);
-    ds.write(0x44, 1); // start conversion, with parasite power on at the end
-    delay(800);
-    byte present = ds.reset();
-    ds.select(addr);
-    ds.write(0xBE); // Read Scratchpad
-    for (int i = 0; i < 9; i++) { // we need 9 bytes
-        data[i] = ds.read();
-    }
-    ds.reset_search();
-    byte MSB = data[1];
-    byte LSB = data[0];
-    
-    float tempRead = ((MSB << 8) | LSB); //using two's compliment
-    float TemperatureSum = tempRead / 16;
-    datatemp[TMDATA] = (int)TemperatureSum;
-    datatemp[TLDATA] = (TemperatureSum - datatemp[2])*100;
-    return TemperatureSum;
-}
 
 float getTemp12(OneWire  ds,byte datatemp[] ) {
   byte i;
@@ -281,12 +233,6 @@ float getTemp12(OneWire  ds,byte datatemp[] ) {
     delay(250);
     return 0;
   }
-
-  //  Serial.print("ROM =");
-  //  for( i = 0; i < 8; i++) {
-  //    Serial.write(' ');
-  //    Serial.print(addr[i], HEX);
-  //  }
 
   if (OneWire::crc8(addr, 7) != addr[7]) {
     Serial.println("CRC is not valid!");
@@ -324,17 +270,9 @@ float getTemp12(OneWire  ds,byte datatemp[] ) {
   ds.select(addr);
   ds.write(0xBE);         // Read Scratchpad
 
-  // Serial.print("  Data = ");
-  // Serial.print(present,HEX);
-  // Serial.print(" ");
   for ( i = 0; i < 9; i++) {           // we need 9 bytes
     data[i] = ds.read();
-    //   Serial.print(data[i], HEX);
-    //   Serial.print(" ");
   }
-  //Serial.print(" CRC=");
-  //Serial.print(OneWire::crc8(data, 8), HEX);
-  //Serial.println();
 
   // convert the data to actual temperature
 
@@ -354,24 +292,27 @@ float getTemp12(OneWire  ds,byte datatemp[] ) {
   }
   float TemperatureSum = (float)raw / 16.0;
   Serial.println(TemperatureSum);
-    datatemp[TMDATA] = (int)TemperatureSum;
-    datatemp[TLDATA] = (TemperatureSum - datatemp[TMDATA])*100;
+  datatemp[TMDATA] = (int)TemperatureSum;
+  datatemp[TLDATA] = (TemperatureSum - datatemp[TMDATA])*100;
 
-  
   return TemperatureSum;
-
 }
 
 
 //********** Setup ***********************
 void setup () {
     Serial.begin(57600);
-    loadConfig();   // load da EEPROM configurazione RF12
+    if (rf12_configSilent()) {
+        loadConfig();            // load da EEPROM configurazione RF12
+        showConfig();
+        settings[S_DATA]=config.lnodeId;
+    } else {
+        Serial.println("EEPROM RF12 data errors");
+    }
     setupIO();      // configurazione GPIO
     loadSettings(); // load da EEPROM parametri runtime
-    settings[S_DATA]=config.nodeId;
-    rf12_initialize(config.nodeId, RF12_868MHZ, config.group);
-    showConfig();
+    
+    //rf12_initialize(config.nodeId & 0x1F, config.nodeId >> 6, config.group);
 }
 
 
