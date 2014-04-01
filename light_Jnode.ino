@@ -1,7 +1,7 @@
 // Control some LED strips, using settings received by wireless
 // or local button
 // Evoluzione di luceChecco e LuceMarta
-// $Id: light_Jnode.ino 1 2014-3-31 21:21:00Z davide $
+// $Id$
 // V2.0
 
 // Source originario per pulsanti: arblink.pde
@@ -111,14 +111,6 @@ static const byte masks[] = { LOUTR, LOUTG, LOUTB, LOUTW };
 int pending = false;
 
 
-// led di controllo rf activity
-static void activityLed (byte on) {
-#ifdef LED_PIN
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, !on);
-    delay(50);
-#endif
-}
 
 // configura GPIO
 static void setupIO() {

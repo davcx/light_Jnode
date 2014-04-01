@@ -1,3 +1,23 @@
+///////////////////////////////
+//$Id$
+///////////////////////////////
+
+///////////////////
+//Activity led
+//
+// led di controllo rf activity
+static void activityLed (byte on) {
+#ifdef LED_PIN
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, !on);
+    delay(50);
+#endif
+}
+
+//////////////////////
+// chiamata a lettura temperatura di DS generico
+//
+
 float getTemp12 ( OneWire  ds,uint8_t datatemp[] ) {
     byte i;
     byte present = 0;
