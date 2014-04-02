@@ -114,7 +114,7 @@ int pending = false;
 
 // configura GPIO
 static void setupIO() {
-    int pin=0;
+    int pin= NULL;
     
     //upperButton input mode, with pull-up resistor
     pin=upButton;
@@ -143,29 +143,6 @@ static byte lowerButton () {
 
 
 
-// load da EEPROM configurazione RF12
-static void loadConfig() {
-    
-        //((byte*) &config)[i] = eeprom_read_byte(RF12_EEPROM_ADDR + 0);
-        config.nodeId = eeprom_read_byte(RF12_EEPROM_ADDR + 0);
-        //((byte*) &config)[i] = eeprom_read_byte(RF12_EEPROM_ADDR + 1);
-        config.group = eeprom_read_byte(RF12_EEPROM_ADDR + 1);
-        config.band = (config.nodeId & 0xE0)>>6;
-        config.lnodeId = config.nodeId & 0x1F;
-        config.dnodeId = OUTDest;
-}
-
-
-// Show configurazione RF12 da EEPROM 
-static void showConfig() {
-    Serial.println(VERSION);
-    Serial.print("Radio Init->");Serial.print(" ");Serial.print( config.nodeId,HEX);Serial.print(" ");
-    Serial.print("NODEID ");Serial.print( config.lnodeId,HEX);Serial.print(" | ");
-    Serial.print("BAND ");Serial.print( (config.nodeId & 0xE0)>>6,HEX);Serial.print(" | ");
-    Serial.print("GROUP ");Serial.print( config.group);Serial.print(" | ");
-    Serial.println();
-    Serial.println();
-}
 
 // lettura da EEPROM a vettore settings[]
 static void loadSettings() {
