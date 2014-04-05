@@ -8,6 +8,10 @@
 // Source originario per gestione RGB ( gestione PWM software):
 // see http://jeelabs.org/2010/06/15/remote-rgb-strip-control/
 // and http://jeelabs.org/2010/10/03/software-pwm-at-1-khz/
+// RF12_HDR_CTL | RF12_HDR_DST 
+// Link protocollo:
+// http://jeelabs.net/projects/jeelib/wiki/RF12demo
+
 
 /* ===========================
 (A0); // , uses AIO port 1 PC0
@@ -220,7 +224,7 @@ void loop () {
     delay(200);
     
     //trasmissione faro ogni 10 sec
-    if (timerLhouse.poll(60000)){
+    if (timerLhouse.poll(10000)){
         settings[C_DATA] = 'T';
         float temper = getTemp12(ow,settings );
         Serial.print ("temperatura letta -- ");
@@ -292,14 +296,14 @@ void loop () {
             Serial.print(settings[i], DEC);
         }
         Serial.print("   ....tx. , ");
-        Serial.println(OUTDest);
+        Serial.println(config.lnodeId);
         
         Serial.println();
         //invia il frame radio per update
         if ( rf12_canSend()){
             Serial.println("   TX >>>>");
             activityLed (1);
-            rf12_sendStart(RF12_HDR_CTL | RF12_HDR_DST | config.dnodeId, settings, sizeof(settings));
+            rf12_sendStart( config.lnodeId, settings, sizeof(settings));
             delay(100);
             activityLed (0);
             pending = false;
