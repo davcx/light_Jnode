@@ -221,7 +221,6 @@ void setup () {
 
 //********** Loop ************************
 void loop () {
-    delay(200);
     
     //trasmissione faro ogni 10 sec
     if (timerLhouse.poll(10000)){
