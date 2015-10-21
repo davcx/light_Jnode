@@ -2,7 +2,7 @@
 // or local button
 // Evoluzione di luceChecco e LuceMarta
 // $Id$
-// V2.0
+// V3.3
 
 // Source originario per pulsanti: arblink.pde
 // Source originario per gestione RGB ( gestione PWM software):
@@ -47,7 +47,7 @@ funzione		__R		__G		__B		__W
 
 #define DEBUG 1
 
-#define VERSION "\n[light_Jnode.V3.2]"           // keep in sync with the above
+#define VERSION "\n[light_Jnode.V3.3]"           // keep in sync with the above
 
 
 // Parametri radio RF12
@@ -55,10 +55,10 @@ funzione		__R		__G		__B		__W
 // NODEID 2 Marta
 // NODEID 3 Checco
 // NODEID 4 Tester
-// NODEID 15 Ethernode
+// NODEID 31 GW
 // frequenza group e nodeID da caricare via RF12Demo in EEPROM
 
-#define OUTDest 15      // nodo del bridge rf12<->MQTT
+#define OUTDest 31      // nodo del bridge rf12<->MQTT
 
 #define LED_PIN     8    // activity LED(B0), comment out to disable
 
@@ -117,7 +117,7 @@ int pending = false;
 
 
 // configura GPIO
-static void setupIO() {
+ void setupIO() {
     int pin= NULL;
     
     //upperButton input mode, with pull-up resistor
@@ -136,12 +136,12 @@ static void setupIO() {
 }
 
 // lettura stato pulsante superiore !!!!!attenzione alla logica negata
-static byte upperButton () {
+ byte upperButton () {
 	return !digitalRead(upButton);
 }
 
 // lettura stato pulsante inferiore !!!!!attenzione alla logica negata
-static byte lowerButton () {
+ byte lowerButton () {
 	return !digitalRead(loButton);
 }
 
@@ -149,7 +149,7 @@ static byte lowerButton () {
 
 
 // lettura da EEPROM a vettore settings[]
-static void loadSettings() {
+void loadSettings() {
 //    for (byte i = 0; i < NVALUES; ++i){
 //        settings[i] = eeprom_read_byte((byte*) i);
 //    }
@@ -159,7 +159,7 @@ static void loadSettings() {
 }
 
 // calcolo vettore stato PWM
-static void prepareSlots() {    
+ void prepareSlots() {    
     for (byte i=0; i < NLEDS; i++){
         intensita[i] = (lookUpTbl[i][settings[L_DATA]]  ) ;
         analogWrite(masks[i],intensita[i]);
@@ -190,7 +190,7 @@ static void prepareSlots() {
 }
 
 // scrittura da vettore a EEPROM
-static void saveSettings() {
+ void saveSettings() {
 //    for (byte i = 0; i < NVALUES; ++i){
 //	eeprom_write_byte((byte*) i, settings[i]);
 //    }
@@ -223,7 +223,7 @@ void setup () {
 void loop () {
     
     //trasmissione faro ogni 10 sec
-    if (timerLhouse.poll(10000)){
+    if (timerLhouse.poll(30000)){
         settings[C_DATA] = 'T';
         float temper = getTemp12(ow,settings );
         Serial.print ("temperatura letta -- ");
@@ -262,31 +262,41 @@ void loop () {
 // se ricevuto un frame remoto aggiorna il vettore 
 // eventualmente invia ack
     if ( rf12_recvDone()){
-        if(     rf12_hdr == (RF12_HDR_DST | config.nodeId & 0x1F)
-             && rf12_crc == 0
-	     && rf12_len == NVALUES){
-            if (   rf12_data[S_DATA] == config.lnodeId
-                && rf12_data[C_DATA] == 'L'){
-//	        if (RF12_WANTS_ACK && rf12_canSend() ) {
-//	            Serial.println(" -> ack");
-//	            rf12_sendStart(RF12_ACK_REPLY, 0, 0);
-//	        }
-                activityLed (1);
-                Serial.print(" RX frame:     ");
-                for (byte i=0; i < NVALUES; i++){
-                    Serial.print(" | ");
-                    Serial.print(i);
-                    Serial.print(" - ");
-                    Serial.println(intensita[i], DEC);
+        Serial.print(" RX frame:<<<<  ");
+                    Serial.print(" NVALUES:");
+                    Serial.println(rf12_len);
+                for (byte i=0; i < rf12_len; i++){
+                            Serial.print(" | ");
+                            Serial.print(i);
+                            Serial.print(" - ");
+                            Serial.println(rf12_data[i], DEC);
+                 }
+        if( rf12_hdr == (RF12_HDR_DST | config.nodeId & 0x1F) && rf12_crc == 0){
+                if (rf12_len == NVALUES){
+
+                if (   rf12_data[S_DATA] == config.lnodeId
+                    && rf12_data[C_DATA] == '1'){
+	                    if (RF12_WANTS_ACK && rf12_canSend() ) {
+	                         Serial.println(" -> ack");
+	                         rf12_sendStart(RF12_ACK_REPLY, 0, 0);
+	                    }
+                        activityLed (1);
+                        Serial.print(" RX frame:     ");
+                        for (byte i=0; i < NVALUES; i++){
+                            Serial.print(" | ");
+                            Serial.print(i);
+                            Serial.print(" - ");
+                            Serial.println(intensita[i], DEC);
+                        }
+                        //pending = true;
+                        memcpy(settings, (void*) rf12_data, rf12_len);
+                        saveSettings();
+                        delay(100);
+                        activityLed (0);
                 }
-                //pending = true;
-                memcpy(settings, (void*) rf12_data, rf12_len);
-                saveSettings();
-                delay(100);
-                activityLed (0);
-            }
         }
-    }
+        }
+        }
     
     // Se aggiornato il vettore PWM fai writeupdate    
     if (pending){

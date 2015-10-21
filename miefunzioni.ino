@@ -6,7 +6,7 @@
 //Activity led
 //
 // led di controllo rf activity
-static void activityLed (byte on) {
+ void activityLed (byte on) {
 #ifdef LED_PIN
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, !on);
@@ -18,7 +18,7 @@ static void activityLed (byte on) {
 // 
 //
 // load da EEPROM configurazione RF12
-static void loadConfig() {
+ void loadConfig() {
     
         //((byte*) &config)[i] = eeprom_read_byte(RF12_EEPROM_ADDR + 0);
         config.nodeId = eeprom_read_byte(RF12_EEPROM_ADDR + 0);
@@ -33,7 +33,7 @@ static void loadConfig() {
 // 
 //
 // Show configurazione RF12 da EEPROM 
-static void showConfig() {
+ void showConfig() {
     Serial.println(VERSION);
     Serial.print("Radio Init->");Serial.print(" ");Serial.print( config.nodeId,HEX);Serial.print(" ");
     Serial.print("NODEID ");Serial.print( config.lnodeId,HEX);Serial.print(" | ");
